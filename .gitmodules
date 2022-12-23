@@ -1,0 +1,4 @@
+[submodule "vendor/openbrush-contracts"]
+	path = vendor/openbrush-contracts
+    url = https://github.com/Phala-Network/openbrush-contracts.git
+    branch = cross-contract

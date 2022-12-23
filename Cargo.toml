@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "privadex/chain_metadata",
+    "privadex/routing",
+    "privadex/route_execution_connector",
+    "privadex/executor",
+]
+
+exclude = [
+    "vendor/openbrush-contracts",
+]

@@ -1,0 +1,68 @@
+use ink_prelude::{
+	vec::Vec,
+	vec,
+};
+
+use crate::bridge_info::{
+	BidirectionalXCMBridge,
+	XCMBridge,
+	get_dest_multilocation_template,
+};
+use crate::registry::{
+	chain::chain_info_registry,
+	token::token_multilocation_spec_registry as token_spec_reg,
+};
+
+pub fn get_xcm_bridges() -> Vec<XCMBridge> {
+	let mut bridges: Vec<XCMBridge> = vec![];
+
+	{
+		let b = BidirectionalXCMBridge::new(
+			token_spec_reg::ASTR_NATIVE,
+			token_spec_reg::ASTR_MOONBEAM
+		);
+		bridges.push(b.to_directed_xcm_bridge(
+			&chain_info_registry::MOONBEAM_INFO, &chain_info_registry::ASTAR_INFO
+		).unwrap());
+		// I deliberately do NOT bridge from Astar to Moonbeam because we currently do not support Astar Native
+		// addresses, and the Astar EVM to Moonbeam bridge requires using the EVM precompile
+	}
+	{
+		let b = BidirectionalXCMBridge::new(
+			token_spec_reg::GLMR_NATIVE,
+			token_spec_reg::GLMR_ASTAR
+		);
+		bridges.push(b.to_directed_xcm_bridge(
+			&chain_info_registry::MOONBEAM_INFO, &chain_info_registry::ASTAR_INFO
+		).unwrap());
+		bridges.push(b.to_directed_xcm_bridge(
+			&chain_info_registry::ASTAR_INFO, &chain_info_registry::MOONBEAM_INFO
+		).unwrap());
+	}
+	{
+		let b = BidirectionalXCMBridge::new(
+			token_spec_reg::DOT_NATIVE,
+			token_spec_reg::DOT_ASTAR
+		);
+		bridges.push(b.to_directed_xcm_bridge(
+			&chain_info_registry::POLKADOT_INFO, &chain_info_registry::ASTAR_INFO
+		).unwrap());
+		bridges.push(b.to_directed_xcm_bridge(
+			&chain_info_registry::ASTAR_INFO, &chain_info_registry::POLKADOT_INFO
+		).unwrap());
+	}
+	{
+		let b = BidirectionalXCMBridge::new(
+			token_spec_reg::DOT_NATIVE,
+			token_spec_reg::DOT_MOONBEAM
+		);
+		bridges.push(b.to_directed_xcm_bridge(
+			&chain_info_registry::POLKADOT_INFO, &chain_info_registry::MOONBEAM_INFO
+		).unwrap());
+		bridges.push(b.to_directed_xcm_bridge(
+			&chain_info_registry::MOONBEAM_INFO, &chain_info_registry::POLKADOT_INFO
+		).unwrap());
+	}
+
+	bridges
+}

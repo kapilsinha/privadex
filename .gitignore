@@ -1,0 +1,10 @@
+# Ignore build artifacts from the local tests sub-crate.
+/target/
+
+# Ignore backup files creates by cargo fmt.
+**/*.rs.bk
+
+# Ignore secret
+**/secrets.sh
+
+.vscode/

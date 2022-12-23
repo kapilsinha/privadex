@@ -1,0 +1,74 @@
+[package]
+name = "privadex_chain_metadata"
+version = "0.1.0"
+authors = ["Kap"]
+edition = "2021"
+
+[profile.release.package.compiler_builtins]
+# The compiler-builtins crate cannot reference libcore, and it's own CI will
+# verify that this is the case. This requires, however, that the crate is built
+# without overflow checks and debug assertions. Forcefully disable debug
+# assertions and overflow checks here which should ensure that even if these
+# assertions are enabled for libstd we won't enable them for compiler_builtins
+# which should ensure we still link everything correctly.
+overflow-checks = false
+
+[dependencies]
+ink_prelude = { version = "3.3.0", default-features = false }
+
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
+scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
+
+pink-extension = { version = "0.1.18", default-features = false }
+# Note that versions <0.19.4 are broken because they do not include the "jsonrpc": "2.0" field in the request
+# (fixed at https://github.com/Phala-Network/pink-web3/commit/f02c05cea5524fe21fce64d1431479e5f234d738)
+pink-web3 = { version = "0.19.4", default-features = false, features = ["pink", "signing"] }
+
+base58 = { version = "0.2.0" }
+blake2-rfc = { version = "0.2.18", default-features = false }
+serde = { version = "1.0.137", default-features = false, features = ["derive", "alloc"]}
+ss58-registry = { version = "1.29.0", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = "0.3.4"
+ethereum-types = { version = "0.13.1", default-features = false, features = ["rlp"] }
+rlp = { version = "0.5", default-features = false }
+
+# Substrate dependencies 
+# NOTE: The default clang on Mac fails to compile (with secp256k1 errors) when the 'full_crypto' feature is enabled.
+# To avoid this, use the llvm clang and AR i.e. do `export CC=/usr/local/opt/llvm/bin/clang; export AR=/usr/local/opt/llvm/bin/llvm-ar`
+sp-core = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false, features = ["full_crypto"]}
+sp-core-hashing = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27", default-features = false }
+sp-runtime = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false}
+# Need to specify this to avoid the error "not all trait items implemented, missing: `Pair`"
+# (https://github.com/paritytech/substrate/issues/9032)
+sp-application-crypto = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false, features = ["full_crypto"]}
+# Need to specify this to avoid the error "the `#[global_allocator]` in ink_allocator conflicts with global allocator in: sp_io"
+# (https://substrate.stackexchange.com/questions/4733/error-when-compiling-a-contract-using-the-xcm-chain-extension)
+sp-io = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false, features = ["disable_panic_handler", "disable_oom", "disable_allocator"] } 
+
+# XCM
+xcm = { version = "0.9.27", git = "https://github.com/paritytech/polkadot.git", tag = "v0.9.27", default-features = false }
+
+static_assertions = "1.1.0"
+
+[lib]
+name = "privadex_chain_metadata"
+path = "src/lib.rs"
+crate-type = [
+	"lib",
+    # This causes "use of undeclared crate or module `privadex_chain_metadata`" issues
+    # in libraries that depend on this one
+    # "cdylib",
+]
+
+[features]
+default = ["std"]
+std = [
+    "scale/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "pink-extension/std",
+    "pink-web3/std",
+]
+ink-as-dependency = []

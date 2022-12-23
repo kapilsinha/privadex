@@ -1,0 +1,334 @@
+use ink_env::debug_println;
+use ink_prelude::{
+	string::String,
+	vec::Vec,
+	vec,
+	format,
+};
+use scale::{Decode, Encode};
+use xcm::latest::{
+    AssetId,
+    MultiAsset,
+    MultiLocation,
+    Junction,
+    Junctions,
+    NetworkId,
+};
+
+use crate::chain_info::{ChainInfo, AddressType};
+use crate::common::{Amount, UniversalChainId, UniversalTokenId};
+
+
+#[derive(Encode, Decode, Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub enum Bridge {
+	Xcm(XCMBridge),
+}
+
+#[derive(Encode, Decode, Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub struct XCMBridge {
+	pub src_token: UniversalTokenId,
+	pub dest_token: UniversalTokenId,
+	// From the source chain's perspective
+	pub token_asset_multilocation: xcm::latest::MultiLocation,
+	// Generates the MultiLocation for the destination wallet address
+	pub dest_multilocation_template: WalletMultiLocationTemplate,
+	pub estimated_bridge_fee_in_dest_chain_native_token: Amount,
+}
+
+pub trait DestMultiLocationGenerator<T> {
+	// Moonbeam' xTokens.transferMultiasset extrinsic specifies the destination address
+	// in a single MultiLocation
+	fn get_full_dest_multilocation(&self, field: T) -> Option<MultiLocation>;
+
+	// Polkadot relay's xcmPallet.limitedReserveAssetTransfer and
+	// Astar's polkadotXcm.limitedReserveAssetTransfer extrinsics specify the destination
+	// chain and beneficiary as two separate MultiLocations
+	// Note that Astar's polkadotXcm pallet has an identical interface to Polkadot relay's xcmPallet:
+	// https://docs.astar.network/docs/xcm/building-with-xcm/client-applications/
+	fn get_split_dest_and_beneficiary_multilocation(&self, field: T)
+		-> Option<(MultiLocation /* dest */, MultiLocation /* beneficiary */)>;
+}
+
+#[derive(Encode, Decode, Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub struct WalletMultiLocationTemplate {
+	template: MultiLocation,
+}
+
+impl DestMultiLocationGenerator<[u8; 20]> for WalletMultiLocationTemplate {
+	// Example 1: a MultiLocation targeting a Moonbeam address from Polkadot relay:
+	// MultiLocation{
+	// 	parents: 1u8,
+	// 	interior: Junctions::X2(
+	// 		Junction::Parachain(888),
+	// 		Junction::AccountKey20{
+	// 			network: NetworkId::Any,
+	// 			key: dest,
+	// 		}
+	// 	),
+	// }
+	// Example 2: a MultiLocation targeting a Moonbeam address from Astar:
+	// MultiLocation{
+	// 	parents: 1u8,
+	// 	interior: Junctions::X2(
+	// 		Junction::Parachain(888),
+	// 		Junction::AccountKey20{
+	// 			network: NetworkId::Any,
+	// 			key: dest,
+	// 		}
+	// 	),
+	// }
+	fn get_full_dest_multilocation(&self, field: [u8; 20]) -> Option<MultiLocation> {
+		let len = self.template.interior.len();
+		if len == 0 {
+			return None;
+		}
+		let mut multilocation = self.template.clone();
+		let last_junction = multilocation.interior.at_mut(len - 1)?;
+		if let Junction::AccountKey20 { network: _, key } = last_junction {
+			let _ = core::mem::replace(key, field);
+			Some(multilocation)
+		} else { None }
+	}
+	fn get_split_dest_and_beneficiary_multilocation(&self, field: [u8; 20])
+			-> Option<(MultiLocation /* dest */, MultiLocation /* beneficiary */)> {
+		let full_dest_multilocation = self.get_full_dest_multilocation(field)?;
+		split_into_dest_and_beneficiary(full_dest_multilocation)
+	}
+}
+
+impl DestMultiLocationGenerator<[u8; 32]> for WalletMultiLocationTemplate {
+	// TODO: convert into tests
+	// Example 1: a MultiLocation targeting an Astar address from Polkadot relay:
+	// MultiLocation{
+	// 	parents: 1u8,
+	// 	interior: Junctions::X2(
+	// 		Junction::Parachain(888),
+	// 		Junction::AccountId32{
+	// 			network: NetworkId::Any,
+	// 			id: dest,
+	// 		}
+	// 	),
+	// }
+	// Example 2: a MultiLocation targeting an Astar address from Moonbeam:
+	// Astar's polkadotXcm pallet has an identical interface to Polkadot relay's xcmPallet:
+	// https://docs.astar.network/docs/xcm/building-with-xcm/client-applications/
+	// e.g. https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fpublic-rpc.pinknode.io%2Fastar#/explorer/query/2493303
+	// MultiLocation{
+	// 	parents: 1u8,
+	// 	interior: Junctions::X2(
+	// 		Junction::Parachain(888),
+	// 		Junction::AccountId32{
+	// 			network: NetworkId::Any,
+	// 			id: dest,
+	// 		}
+	// 	),
+	// }
+	// Example 3: a MultiLocation targeting a Polkadot relay address from Moonbeam or Astar:
+	// e.g. https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fwss.api.moonbeam.network#/explorer/query/2518311
+	// MultiLocation{
+	// 	parents: 1u8,
+	// 	interior: Junctions::X1(
+	// 		Junction::AccountId32{
+	// 			network: NetworkId::Any,
+	// 			id: dest,
+	// 		}
+	// 	),
+	// }
+	fn get_full_dest_multilocation(&self, field: [u8; 32]) -> Option<MultiLocation> {
+		let len = self.template.interior.len();
+		if len == 0 {
+			return None;
+		}
+		let mut multilocation = self.template.clone();
+		let last_junction = multilocation.interior.at_mut(len - 1)?;
+		if let Junction::AccountId32 { network: _, id } = last_junction {
+			let _ = core::mem::replace(id, field);
+			Some(multilocation)
+		} else { None }
+	}
+
+	fn get_split_dest_and_beneficiary_multilocation(&self, field: [u8; 32])
+			-> Option<(MultiLocation /* dest */, MultiLocation /* beneficiary */)> {
+		let full_dest_multilocation = self.get_full_dest_multilocation(field)?;
+		split_into_dest_and_beneficiary(full_dest_multilocation)
+	}
+}
+
+fn split_into_dest_and_beneficiary(full_dest_multilocation: MultiLocation)
+	-> Option<(MultiLocation, MultiLocation)>
+{
+	// For limitedReserveAssetTransfers, I have only seen junctions of the form
+	// X2: (Parachain, AccountKey/ID). For safety I will require junctions of length 2
+	if full_dest_multilocation.interior.len() != 2 { return None; }
+	let (split_dest, beneficiary_junction) = full_dest_multilocation.split_last_interior();
+	let beneficiary = MultiLocation::new(0, Junctions::X1(beneficiary_junction?));
+	Some((split_dest, beneficiary))
+}
+
+// Convenience struct to help construct BidirectionalXCMBridges
+// TODO: maybe move into a new token_info.rs folder?
+#[derive(Encode, Decode, Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub(crate) struct TokenMultiLocationSpec {
+	pub token: UniversalTokenId,
+	// Token's MultiLocation from this chain's perspective
+	pub token_asset_multilocation: xcm::latest::MultiLocation,
+}
+
+// Convenience struct to help construct (unidirectional) XCMBridges
+// TODO: See if I can make this only visible to registry::bridge
+#[derive(Encode, Decode, Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub(crate) struct BidirectionalXCMBridge {
+	token0_spec: TokenMultiLocationSpec,
+	token1_spec: TokenMultiLocationSpec,
+}
+
+impl BidirectionalXCMBridge {
+	pub const fn new(
+		token0_spec: TokenMultiLocationSpec,
+		token1_spec: TokenMultiLocationSpec,
+	) -> Self {
+		// TODO: add a compile-time to check that token0 and token1 are diff chains
+		Self { token0_spec, token1_spec }
+	}
+
+	pub fn to_directed_xcm_bridge(
+		&self,
+		src_chain_info: &ChainInfo,
+		dest_chain_info: &ChainInfo,
+	) -> Option<XCMBridge> {
+		let src_chain = &src_chain_info.chain_id;
+		let dest_chain = &dest_chain_info.chain_id;
+		if (src_chain.get_relay() != dest_chain.get_relay()) || (src_chain == dest_chain) {
+			return None;
+		}
+		let (src_token, dest_token, token_asset_multilocation) = {
+			if (src_chain, dest_chain) == (&self.token0_spec.token.chain, &self.token1_spec.token.chain) {
+				(self.token0_spec.token.clone(), self.token1_spec.token.clone(), self.token0_spec.token_asset_multilocation.clone())
+			} else if (src_chain, dest_chain) == (&self.token1_spec.token.chain, &self.token0_spec.token.chain, ) {
+				(self.token1_spec.token.clone(), self.token0_spec.token.clone(), self.token1_spec.token_asset_multilocation.clone())
+			} else {
+				// Compile time check that this never happens?
+				return None;
+			}
+		};
+		let dest_multilocation_template = Self::get_dest_multilocation_template(src_chain_info, dest_chain_info);
+		Some(XCMBridge {
+			src_token,
+			dest_token,
+			token_asset_multilocation,
+			dest_multilocation_template,
+			estimated_bridge_fee_in_dest_chain_native_token: dest_chain_info.avg_bridge_fee_in_native_token,
+		})
+	}
+
+	const fn get_dest_multilocation_template(
+		src_chain_info: &ChainInfo,
+		dest_chain_info: &ChainInfo,
+	) -> WalletMultiLocationTemplate {
+		let address_tail_junction_template = match src_chain_info.xcm_address_type {
+			AddressType::Ethereum => {
+				let zero_addr: [u8; 20] = [0; 20];
+				Junction::AccountKey20 { network: NetworkId::Any, key: zero_addr }
+			},
+			AddressType::SS58 => {
+				let zero_addr: [u8; 32] = [0; 32];
+				Junction::AccountId32 { network: NetworkId::Any, id: zero_addr }
+			},
+		};
+		let raw_multilocation = match (src_chain_info.chain_id, dest_chain_info.chain_id) {
+			(UniversalChainId::SubstrateParachain(_, _), UniversalChainId::SubstrateParachain(_, dest_chain_id)) => {
+				MultiLocation{
+					parents: 1u8,
+					interior: Junctions::X2(
+						Junction::Parachain(dest_chain_id),
+						address_tail_junction_template,
+					),
+				}
+			},
+			(UniversalChainId::SubstrateRelayChain(_), UniversalChainId::SubstrateParachain(_, dest_chain_id)) => {
+				MultiLocation{
+					parents: 0u8,
+					interior: Junctions::X2(
+						Junction::Parachain(dest_chain_id),
+						address_tail_junction_template,
+					),
+				}
+			},
+			(UniversalChainId::SubstrateParachain(_, _), UniversalChainId::SubstrateRelayChain(_)) => {
+				MultiLocation{
+					parents: 1u8,
+					interior: Junctions::X1(
+						address_tail_junction_template,
+					),
+				}
+			},
+			(UniversalChainId::SubstrateRelayChain(_), UniversalChainId::SubstrateRelayChain(_)) => { 
+				panic!("Hard fail. We should not be bridging across two relay chains")
+			},
+		};
+		WalletMultiLocationTemplate { template: raw_multilocation }
+	}
+}
+
+pub(crate) const fn get_dest_multilocation_template(
+	src_chain_info: &ChainInfo,
+	dest_chain_info: &ChainInfo,
+) -> WalletMultiLocationTemplate {
+	let address_tail_junction_template = match src_chain_info.xcm_address_type {
+		AddressType::Ethereum => {
+			let zero_addr: [u8; 20] = [0; 20];
+			Junction::AccountKey20 { network: NetworkId::Any, key: zero_addr }
+		},
+		AddressType::SS58 => {
+			let zero_addr: [u8; 32] = [0; 32];
+			Junction::AccountId32 { network: NetworkId::Any, id: zero_addr }
+		},
+	};
+	let raw_multilocation = match (src_chain_info.chain_id, dest_chain_info.chain_id) {
+		(UniversalChainId::SubstrateParachain(_, _), UniversalChainId::SubstrateParachain(_, dest_chain_id)) => {
+			MultiLocation{
+				parents: 1u8,
+				interior: Junctions::X2(
+					Junction::Parachain(dest_chain_id),
+					address_tail_junction_template,
+				),
+			}
+		},
+		(UniversalChainId::SubstrateRelayChain(_), UniversalChainId::SubstrateParachain(_, dest_chain_id)) => {
+			MultiLocation{
+				parents: 0u8,
+				interior: Junctions::X2(
+					Junction::Parachain(dest_chain_id),
+					address_tail_junction_template,
+				),
+			}
+		},
+		(UniversalChainId::SubstrateParachain(_, _), UniversalChainId::SubstrateRelayChain(_)) => {
+			MultiLocation{
+				parents: 1u8,
+				interior: Junctions::X1(
+					address_tail_junction_template,
+				),
+			}
+		},
+		(UniversalChainId::SubstrateRelayChain(_), UniversalChainId::SubstrateRelayChain(_)) => { 
+			panic!("Hard fail. We should not be bridging across two relay chains")
+		},
+	};
+	WalletMultiLocationTemplate { template: raw_multilocation }
+}
+
+#[cfg(test)]
+mod bridge_info_tests {
+    use super::*;
+	
+    #[test]
+    fn test_moonbeam_to_astar_multilocation() {
+        assert_eq!(false, true);
+    }
+}

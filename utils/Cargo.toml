@@ -1,0 +1,39 @@
+[package]
+name = "fat_utils"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ink_prelude = { version = "3.3.0", default-features = false }
+ink_primitives = { version = "3.3.0", default-features = false }
+ink_metadata = { version = "3.3.0", default-features = false, features = ["derive"], optional = true }
+ink_storage = { version = "3.3.0", default-features = false }
+ink_lang = { version = "3.3.0", default-features = false }
+ink_env = { version = "3.3.0", default-features = false }
+
+scale = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
+
+pink-extension = { version = "0.1.18", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+pink-extension-runtime = "0.1.4"
+
+[lib]
+name = "fat_utils"
+path = "src/lib.rs"
+
+[features]
+default = ["std"]
+std = [
+    "ink_primitives/std",
+    "ink_metadata/std",
+    "ink_storage/std",
+    "ink_env/std",
+    "scale/std",
+    "scale-info/std",
+    "pink-extension/std",
+]
