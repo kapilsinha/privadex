@@ -1,0 +1,79 @@
+[package]
+name = "privadex_common"
+version = "0.1.0"
+authors = ["Kap"]
+edition = "2021"
+
+[profile.release.package.compiler_builtins]
+# The compiler-builtins crate cannot reference libcore, and it's own CI will
+# verify that this is the case. This requires, however, that the crate is built
+# without overflow checks and debug assertions. Forcefully disable debug
+# assertions and overflow checks here which should ensure that even if these
+# assertions are enabled for libstd we won't enable them for compiler_builtins
+# which should ensure we still link everything correctly.
+overflow-checks = false
+
+[dependencies]
+ink_prelude = { version = "3.4.0", default-features = false }
+ink_env = { version = "3.4.0", default-features = false }
+
+scale = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = ["derive"] }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"], optional = true }
+
+pink-extension = { version = "0.1.19", default-features = false }
+
+base58 = { version = "0.2.0" }
+blake2-rfc = { version = "0.2.18", default-features = false }
+ss58-registry = { version = "1.37.0", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = "0.3.4"
+# You cannot enable any feature that includes randomness (e.g. v4) because no_std does
+# not allow for rand crates
+uuid = { version = "1.2.2", default-features = false, features = ["wasm-bindgen"] }
+primitive-types = { version = "0.12.1", default-features = false }
+
+# Substrate dependencies 
+# NOTE: The default clang on Mac fails to compile (with secp256k1 errors) when the 'full_crypto' feature is enabled.
+# To avoid this, use the llvm clang and AR i.e. do `export CC=/usr/local/opt/llvm/bin/clang; export AR=/usr/local/opt/llvm/bin/llvm-ar`
+sp-core = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, features = ["full_crypto"]}
+sp-core-hashing = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
+sp-runtime = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
+# Need to specify this to avoid the error "not all trait items implemented, missing: `Pair`"
+# (https://github.com/paritytech/substrate/issues/9032)
+sp-application-crypto = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, features = ["full_crypto"]}
+# Need to specify this to avoid the error "the `#[global_allocator]` in ink_allocator conflicts with global allocator in: sp_io"
+# (https://substrate.stackexchange.com/questions/4733/error-when-compiling-a-contract-using-the-xcm-chain-extension)
+sp-io = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, features = ["disable_panic_handler", "disable_oom", "disable_allocator"] } 
+
+# Used for S3 API
+sha2 = { version = "0.10.6", default-features = false }
+hmac = { version = "0.12.1", default-features = false }
+base16 = { version = "0.2.1", default-features = false, features = ["alloc"] }
+chrono = { version = "0.4.23", default-features = false, features = ["alloc"] }
+aes-gcm-siv = { version = "0.11.1", default-features = false, features = ["aes", "alloc"] }
+cipher = { version = "0.4.3", default-features = false }
+
+[dev-dependencies]
+pink-extension-runtime = "0.1.4"
+
+[lib]
+name = "privadex_common"
+path = "src/lib.rs"
+crate-type = [
+	"lib",
+]
+
+[features]
+default = ["std"]
+std = [
+    "ink_env/std",
+    "scale/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "pink-extension/std",
+]
+# If enabled, the corresponding S3 tests interact with a live S3 store
+s3-live-test = []
+dynamodb-live-test = []
+ink-as-dependency = []

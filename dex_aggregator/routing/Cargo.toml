@@ -1,0 +1,77 @@
+[package]
+name = "privadex_routing"
+version = "0.1.0"
+authors = ["Kap"]
+edition = "2021"
+
+[profile.release.package.compiler_builtins]
+# The compiler-builtins crate cannot reference libcore, and it's own CI will
+# verify that this is the case. This requires, however, that the crate is built
+# without overflow checks and debug assertions. Forcefully disable debug
+# assertions and overflow checks here which should ensure that even if these
+# assertions are enabled for libstd we won't enable them for compiler_builtins
+# which should ensure we still link everything correctly.
+overflow-checks = false
+
+[dependencies]
+ink_prelude = { version = "3.4.0", default-features = false }
+ink_env = { version = "3.4.0", default-features = false }
+
+scale = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = ["derive"] }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"], optional = true }
+
+pink-extension = { version = "0.1.19", default-features = false }
+
+duplicate = { version = "0.4.1" }
+serde-json-core = { version = "0.5.0", default-features = false }
+serde = { version = "1.0.152", default-features = false, features = ["derive", "alloc"]}
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = "0.3.4"
+
+# XCM
+xcm = { version = "0.9.29", git = "https://github.com/paritytech/polkadot.git", tag = "v0.9.29", default-features = false }
+
+# Graphlib
+graphlib = { version = "0.6.3", git = "https://github.com/kapilsinha/graphlib", branch = "no-float", default-features = false }
+hashbrown = { version = "0.6.3", default-features = false, features = ["inline-more", "ahash"] }
+
+privadex_common = { path = "../common", default-features = false }
+privadex_chain_metadata = { path = "../chain_metadata", default-features = false }
+
+[dev-dependencies]
+pink-extension-runtime = "0.1.4"
+
+[lib]
+name = "privadex_routing"
+path = "src/lib.rs"
+crate-type = [
+    "lib",
+]
+
+[[example]]
+name = "privadex_build_visualize_graph"
+path = "examples/build_visualize_graph.rs"
+required-features = ["dot"]
+
+[[test]]
+name = "privadex_create_graph"
+path = "tests/static_graph.rs"
+required-features = ["test-utils"]
+
+[features]
+default = ["std"]
+std = [
+    "graphlib/std",
+    "ink_env/std",
+    "scale/std",
+    "scale-info/std",
+    "pink-extension/std",
+    "serde-json-core/std",
+    "privadex_common/std",
+    "privadex_chain_metadata/std",
+]
+dot = [
+    "graphlib/dot"
+]
+test-utils = []
+ink-as-dependency = []

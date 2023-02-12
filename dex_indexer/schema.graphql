@@ -1,0 +1,166 @@
+type UniswapFactory @entity {
+  # factory address
+  id: ID!
+
+  # pair info
+  pairCount: Int!
+
+  # total volume
+  totalVolumeUSD: BigDecimal!
+  totalVolumeETH: BigDecimal!
+
+  # untracked values - less confident USD scores
+  untrackedVolumeUSD: BigDecimal!
+
+  # total liquidity
+  totalLiquidityUSD: BigDecimal!
+  totalLiquidityETH: BigDecimal!
+
+  # transactions
+  txCount: Int!
+}
+
+type Token @entity {
+  # token address
+  id: ID!
+
+  # mirrored from the smart contract
+  symbol: String!
+  name: String!
+  decimals: Int!
+
+  # used for other stats like marketcap
+  totalSupply: String!
+
+  # token specific volume
+  tradeVolume: BigDecimal!
+  tradeVolumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
+
+  # transactions across all pairs
+  txCount: Int!
+
+  # liquidity across all pairs
+  totalLiquidity: BigDecimal!
+
+  # derived prices
+  derivedETH: BigDecimal!
+}
+
+type Pair @entity {
+  # pair address
+  id: ID!
+
+  token0: Token!
+  token0Id: ID!
+
+  token1: Token!
+  token1Id: ID!
+  
+  reserve0: BigDecimal!
+  reserve1: BigDecimal!
+  totalSupply: BigDecimal!
+
+  # derived liquidity
+  reserveETH: BigDecimal!
+  reserveUSD: BigDecimal!
+  # used for separating per pair reserves and global
+  trackedReserveETH: BigDecimal!
+
+  # Price in terms of the asset pair
+  token0Price: BigDecimal!
+  token1Price: BigDecimal!
+
+  # lifetime volume stats
+  volumeToken0: BigDecimal!
+  volumeToken1: BigDecimal!
+  volumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
+  txCount: Int!
+
+  # creation stats
+  createdAtTimestamp: DateTime!
+  createdAtBlockNumber: Int!
+
+  # Fields used to help derived relationship
+  liquidityProviderCount: Int! # used to detect new exchanges
+  # derived fields
+  # pairHourData: [PairHourData!]! @derivedFrom(field: "pair")
+  liquidityPositions: [LiquidityPosition!]! @derivedFrom(field: "pair")
+  # liquidityPositionSnapshots: [LiquidityPositionSnapshot!]! @derivedFrom(field: "pair")
+  # mints: [Mint!]! @derivedFrom(field: "pair")
+  # burns: [Burn!]! @derivedFrom(field: "pair")
+  swaps: [TokenSwapEvent!]! @derivedFrom(field: "pair")
+}
+
+type LiquidityPosition @entity {
+  id: ID!
+  user: String!
+  pair: Pair!
+  liquidityTokenBalance: BigDecimal!
+}
+
+type Transaction @entity {
+  id: ID! # txn hash
+  blockNumber: Int!
+  timestamp: DateTime!
+
+  swaps: [ID!]
+}
+
+type TokenSwapEvent @entity {
+  # transaction hash + "-" + index in swaps Transaction array
+  id: ID!
+
+  transaction: Transaction
+  timestamp: DateTime! @index
+  
+  pair: Pair
+  pairId: ID
+
+  pool: Pool
+  poolId: ID
+
+  buyer: String! @index
+  tokenSold: Token!
+  soldAmount: BigInt!
+  tokenBought: Token!
+  boughtAmount: BigInt!
+
+  amountUSD: BigDecimal! # derived info
+}
+
+# stores for USD calculations
+type Bundle @entity {
+  id: ID!
+  ethPrice: BigDecimal! # price of ETH usd
+}
+
+type Pool @entity {
+  id: ID!
+
+  # number of tokens supported
+  numTokens: Int!
+
+  # supported tokens
+  tokens: [String!]!
+
+  # token balances
+  balances: [BigInt!]!
+
+  # liquidity provider token
+  lpToken: String!
+
+  # amplification coefficient
+  a: BigInt!
+
+  swapFee: BigInt!
+  adminFee: BigInt!
+
+  virtualPrice: BigInt!
+
+  # owner address
+  owner: String!
+
+  swaps: [TokenSwapEvent!] @derivedFrom(field: "pool")
+}

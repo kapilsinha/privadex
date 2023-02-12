@@ -1,7 +1,7 @@
 import json
 import requests
 
-url = 'https://squid.subsquid.io/<endpoint>/graphql'
+url = 'https://squid.subsquid.io/privadex-arthswap/v/v0/graphql'
 query = '''
 {
   pairs(orderBy: reserveUSD_DESC, where: {reserveUSD_gt: "20000"}) {
@@ -27,12 +27,11 @@ query = '''
   }
 }
 '''
-
 headers = {
    'content-type': 'application/json',
 }
 body = {'query': query}
 
+# x = requests.post(url, json=body) # equivalent and more succinct than below, does the below under the hood
 x = requests.post(url, headers=headers, data=json.dumps(body))
 print(x.json())
-

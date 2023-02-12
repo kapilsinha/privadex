@@ -1,0 +1,18 @@
+/node_modules
+/lib
+
+/**Versions.json
+
+# IDE files
+/.idea
+src/model/generated copy/bundle.model.ts
+src/model/generated copy/index.ts
+src/model/generated copy/liquidityPosition.model.ts
+src/model/generated copy/marshal.ts
+src/model/generated copy/pair.model.ts
+src/model/generated copy/swap.model.ts
+src/model/generated copy/token.model.ts
+src/model/generated copy/transaction.model.ts
+src/model/generated copy/uniswapFactory.model.ts
+src/model/generated copy/user.model.ts
+

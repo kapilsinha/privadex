@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Cargo Auto-format check via rustfmt (returns 1 if formatting corrections need to be made)
+cargo fmt --check --package privadex_common privadex_chain_metadata privadex_routing privadex_execution_plan privadex_executor
+CARGO_FMT_EXIT_CODE=$?
+
+if [ $CARGO_FMT_EXIT_CODE -ne 0 ]
+then
+    echo "BAD FORMATTING. Please resolve manually or run 'cargo fmt --check --package privadex_common privadex_chain_metadata privadex_routing privadex_execution_plan privadex_executor'. Then 'git commit' again."
+    exit 1
+else
+    exit 0
+fi
+
