@@ -67,9 +67,9 @@ name = "privadex_executor"
 path = "src/lib.rs"
 crate-type = [
 	# Needed for normal contract Wasm blobs i.e. for `cargo contract build`
-	"cdylib",
+	#"cdylib",
     # Needed to be able to use privadex_executor as a library e.g. in integration tests and examples
-    #"lib",
+    "lib",
 ]
 
 [[example]]
@@ -112,6 +112,9 @@ std = [
     "privadex_execution_plan/std",
 ]
 mock-txn-send = []
+s3-live-test = []
+dynamodb-live-test = []
+private-rpc-endpoint = []
 ink-as-dependency = []
 mockable = [
     "openbrush/mockable",

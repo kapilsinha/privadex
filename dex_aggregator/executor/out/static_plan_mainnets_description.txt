@@ -1,0 +1,8 @@
+Overall: xcDOT on Moonbeam -> ASTR on Astar
+
+Pre: The user ERC20 transfers 0.05 xcDOT to the escrow account on Moonbeam
+1. Swap xcDOT on Moonbeam for native GLMR via StellaSwap
+2. XCM bridge GLMR from Moonbeam to Astar
+3. Swap xcGLMR on Astar for ASTR via ArthSwap
+Post: The escrow account transfers ASTR to the user on Astar
+
