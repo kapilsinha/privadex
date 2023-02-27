@@ -1,0 +1,10 @@
+{
+    "outDir": "src/types",
+    "specVersions": "versions.jsonl",
+    "typesBundle": "moonbeam",
+    "events": [
+      "EVM.Log"
+    ],
+    "calls": []
+  }
+  

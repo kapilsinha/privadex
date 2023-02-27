@@ -1,0 +1,121 @@
+[package]
+name = "privadex_executor"
+version = "0.1.0"
+authors = ["Kap"]
+edition = "2021"
+
+[profile.release.package.compiler_builtins]
+# The compiler-builtins crate cannot reference libcore, and it's own CI will
+# verify that this is the case. This requires, however, that the crate is built
+# without overflow checks and debug assertions. Forcefully disable debug
+# assertions and overflow checks here which should ensure that even if these
+# assertions are enabled for libstd we won't enable them for compiler_builtins
+# which should ensure we still link everything correctly.
+overflow-checks = false
+
+[dependencies]
+ink_prelude = { version = "3.4.0", default-features = false }
+ink_primitives = { version = "3.4.0", default-features = false }
+ink_metadata = { version = "3.4.0", default-features = false, features = ["derive"], optional = true }
+ink_env = { version = "3.4.0", default-features = false }
+ink_storage = { version = "3.4.0", default-features = false }
+ink_lang = { version = "3.4.0", default-features = false }
+
+scale = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = ["derive"] }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"], optional = true }
+
+openbrush = { version = "2.1.0", git = "https://github.com/kapilsinha/openbrush-contracts.git", branch = "cross-contract", default-features = false }
+pink-extension = { version = "0.1.19", default-features = false }
+# Note that versions <0.19.4 are broken because they do not include the "jsonrpc": "2.0" field in the request
+# (fixed at https://github.com/Phala-Network/pink-web3/commit/f02c05cea5524fe21fce64d1431479e5f234d738)
+pink-web3 = { version = "0.19.4", default-features = false, features = ["pink", "signing"] }
+
+blake2-rfc = { version = "0.2.18", default-features = false }
+duplicate = { version = "0.4.1" }
+serde-json-core = { version = "0.5.0", default-features = false }
+serde = { version = "1.0.152", default-features = false, features = ["derive", "alloc"]}
+ss58-registry = { version = "1.37.0", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = "0.3.4"
+
+# Substrate dependencies 
+# NOTE: The default clang on Mac fails to compile (with secp256k1 errors) when the 'full_crypto' feature is enabled.
+# To avoid this, use the llvm clang and AR i.e. do `export CC=/usr/local/opt/llvm/bin/clang; export AR=/usr/local/opt/llvm/bin/llvm-ar`
+sp-core = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, features = ["full_crypto"]}
+sp-core-hashing = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
+sp-runtime = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
+# Need to specify this to avoid the error "not all trait items implemented, missing: `Pair`"
+# (https://github.com/paritytech/substrate/issues/9032)
+sp-application-crypto = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, features = ["full_crypto"]}
+# Need to specify this to avoid the error "the `#[global_allocator]` in ink_allocator conflicts with global allocator in: sp_io"
+# (https://substrate.stackexchange.com/questions/4733/error-when-compiling-a-contract-using-the-xcm-chain-extension)
+sp-io = { version = "6.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, features = ["disable_panic_handler", "disable_oom", "disable_allocator"] } 
+
+# XCM
+xcm = { version = "0.9.29", git = "https://github.com/paritytech/polkadot.git", tag = "v0.9.29", default-features = false }
+
+privadex_common = { path = "../common", default-features = false }
+privadex_chain_metadata = { path = "../chain_metadata", default-features = false }
+privadex_routing = { path = "../routing", default-features = false }
+privadex_execution_plan = { path = "../execution_plan", default-features = false }
+
+[dev-dependencies]
+pink-extension-runtime = "0.1.4"
+
+[lib]
+name = "privadex_executor"
+path = "src/lib.rs"
+crate-type = [
+	# Needed for normal contract Wasm blobs i.e. for `cargo contract build`
+	#"cdylib",
+    # Needed to be able to use privadex_executor as a library e.g. in integration tests and examples
+    "lib",
+]
+
+[[example]]
+name = "privadex_send_xtokens_extrinsic"
+path = "examples/send_xtokens_extrinsic.rs"
+
+[[example]]
+name = "privadex_execute_static_plan_moonbase_alpha"
+path = "examples/execute_static_plan_moonbase_alpha.rs"
+required-features = ["std"]
+
+[[example]]
+name = "privadex_execute_static_plan_mainnets"
+path = "examples/execute_static_plan_mainnets.rs"
+required-features = ["std"]
+
+[[example]]
+name = "privadex_e2e_execute_plan_mainnets"
+path = "examples/e2e_execute_plan_mainnets.rs"
+required-features = ["std"]
+
+[features]
+default = ["std"]
+std = [
+    "ink_metadata/std",
+    "ink_env/std",
+    "ink_storage/std",
+    "ink_primitives/std",
+    "openbrush/std",
+    "openbrush/mockable",
+    "scale/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "pink-extension/std",
+    "pink-web3/std",
+    "serde-json-core/std",
+    "privadex_common/std",
+    "privadex_chain_metadata/std",
+    "privadex_execution_plan/std",
+]
+mock-txn-send = []
+s3-live-test = []
+dynamodb-live-test = []
+private-rpc-endpoint = []
+ink-as-dependency = []
+mockable = [
+    "openbrush/mockable",
+]

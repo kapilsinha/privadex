@@ -2,12 +2,10 @@
 resolver = "2"
 
 members = [
-    "privadex/chain_metadata",
-    "privadex/routing",
-    "privadex/route_execution_connector",
-    "privadex/executor",
+    "dex_aggregator/common",
+    "dex_aggregator/chain_metadata",
+    "dex_aggregator/routing",
+    "dex_aggregator/execution_plan",
+    "dex_aggregator/executor",
 ]
 
-exclude = [
-    "vendor/openbrush-contracts",
-]

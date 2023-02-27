@@ -1,0 +1,69 @@
+[package]
+name = "privadex_execution_plan"
+version = "0.1.0"
+authors = ["Kap"]
+edition = "2021"
+
+[profile.release.package.compiler_builtins]
+# The compiler-builtins crate cannot reference libcore, and it's own CI will
+# verify that this is the case. This requires, however, that the crate is built
+# without overflow checks and debug assertions. Forcefully disable debug
+# assertions and overflow checks here which should ensure that even if these
+# assertions are enabled for libstd we won't enable them for compiler_builtins
+# which should ensure we still link everything correctly.
+overflow-checks = false
+
+[dependencies]
+ink_prelude = { version = "3.4.0", default-features = false }
+ink_env = { version = "3.4.0", default-features = false }
+
+scale = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = ["derive"] }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"], optional = true }
+
+pink-extension = { version = "0.1.19", default-features = false }
+
+duplicate = { version = "0.4.1" }
+serde-json-core = { version = "0.5.0", default-features = false }
+serde = { version = "1.0.152", default-features = false, features = ["derive", "alloc"]}
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = "0.3.4"
+
+sp-core-hashing = { version = "4.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.29", default-features = false }
+
+# XCM
+xcm = { version = "0.9.29", git = "https://github.com/paritytech/polkadot.git", tag = "v0.9.29", default-features = false }
+
+privadex_common = { path = "../common", default-features = false }
+privadex_chain_metadata = { path = "../chain_metadata", default-features = false }
+privadex_routing = { path = "../routing", default-features = false }
+
+[dev-dependencies]
+pink-extension-runtime = "0.1.4"
+
+[lib]
+name = "privadex_execution_plan"
+path = "src/lib.rs"
+crate-type = [
+	"lib",
+]
+
+[[example]]
+name = "privadex_compute_execution_plan"
+path = "examples/compute_execution_plan.rs"
+
+[features]
+default = ["std"]
+std = [
+    "ink_env/std",
+    "scale/std",
+    "scale-info/std",
+    "pink-extension/std",
+    "serde-json-core/std",
+    "privadex_common/std",
+    "privadex_chain_metadata/std",
+    "privadex_routing/std",
+]
+test-utils = [
+    "privadex_routing/test-utils"
+]
+ink-as-dependency = []
